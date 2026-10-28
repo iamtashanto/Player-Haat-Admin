@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import {
-  Activity, Bell, ClipboardList, Flag, LayoutDashboard, LogOut, MapPin, Menu, Monitor, Moon, ScrollText,
+  Activity, BadgeCheck, Bell, Briefcase, ClipboardList, CreditCard, Flag, LayoutDashboard, LogOut, MapPin, Menu, Monitor, Moon, ScrollText,
   Settings, Shield, Sun, Trophy, UserCog, Users, type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
@@ -19,7 +19,15 @@ export const NAV: NavGroup[] = [
     title: 'People',
     items: [
       { to: '/users', label: 'Users', icon: Users, permission: 'users.view' },
-      { to: '/profiles', label: 'Sports profiles', icon: Trophy, permission: 'profiles.view' },
+      { to: '/profiles', label: 'Sport profiles', icon: Trophy, permission: 'profiles.view' },
+      { to: '/recruiters', label: 'Recruiters', icon: Briefcase, permission: 'recruiters.view' },
+    ],
+  },
+  {
+    title: 'Trust & money',
+    items: [
+      { to: '/verifications', label: 'Verifications', icon: BadgeCheck, permission: 'verifications.review' },
+      { to: '/payments', label: 'Payments & credits', icon: CreditCard, permission: 'payments.review' },
     ],
   },
   {
@@ -34,7 +42,7 @@ export const NAV: NavGroup[] = [
     items: [
       { to: '/config/sports', label: 'Sports & positions', icon: Activity, permission: 'config.sports' },
       { to: '/config/locations', label: 'Locations', icon: MapPin, permission: 'config.locations' },
-      { to: '/config/flags', label: 'Feature flags', icon: Settings, permission: 'config.flags' },
+      { to: '/config/flags', label: 'Flags & pricing', icon: Settings, permission: 'config.flags' },
       { to: '/notifications', label: 'Announcements', icon: Bell, permission: 'notifications.send' },
       { to: '/audit', label: 'Audit log', icon: ScrollText, permission: 'audit.view' },
     ],

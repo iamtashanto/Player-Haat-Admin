@@ -8,10 +8,7 @@ export interface AdminUser {
   role: string
 }
 
-/**
- * Backend contract for the mandatory-2FA flow. These endpoints do NOT exist in the API yet —
- * see README ("Backend work required") for the full spec.
- */
+/** The server's mandatory-2FA flow: password → challenge → authenticator code (or backup code) → session. */
 export type LoginStep =
   | { status: 'TOTP_REQUIRED'; challengeToken: string }
   | { status: 'TOTP_SETUP_REQUIRED'; challengeToken: string }
@@ -28,7 +25,7 @@ export interface EnableResult {
 }
 
 export async function login(email: string, password: string): Promise<LoginStep> {
-  const { data } = await api.post<LoginStep | { accessToken: string; user?: AdminUser }>(
+  const { data } = await api.post<LoginStep | { accessToken?: string; tokens?: { accessToken: string }; user?: AdminUser }>(
     '/admin/auth/login',
     { email, password },
     { anonymous: true },
@@ -37,7 +34,8 @@ export async function login(email: string, password: string): Promise<LoginStep>
   // Today's API returns tokens straight after the password. Mandatory 2FA means we refuse that,
   // except in `vite dev` with VITE_ALLOW_NO_2FA_DEV=true so the UI can be exercised pre-backend.
   if (import.meta.env.DEV && import.meta.env.VITE_ALLOW_NO_2FA_DEV === 'true') {
-    return { status: 'AUTHENTICATED', accessToken: data.accessToken }
+    const token = data.accessToken ?? data.tokens?.accessToken
+    if (token) return { status: 'AUTHENTICATED', accessToken: token }
   }
   throw new ApiError(500, 'TWO_FACTOR_NOT_ENFORCED', 'Server did not require two-factor authentication. Sign-in blocked.')
 }

@@ -64,9 +64,15 @@ async function parse<T>(res: Response): Promise<ApiResult<T>> {
   return { data: json?.data as T, meta: json?.meta ?? {} }
 }
 
-/** Exchanges the refresh cookie for a new access token. Concurrent callers share one request. */
+/**
+ * Exchanges the refresh cookie for a new access token. Concurrent callers in this tab share one request.
+ *
+ * Refresh tokens are single-use, so two tabs refreshing at the same instant would present the same cookie: one wins,
+ * the other looks like a stolen-token replay and the server signs both out. A cross-tab lock makes them take turns, so
+ * the second tab sends the cookie the first one just received.
+ */
 export function refreshAccessToken(): Promise<string | null> {
-  refreshing ??= (async () => {
+  const exchange = async (): Promise<string | null> => {
     try {
       const res = await fetch(buildUrl('/admin/auth/refresh'), { method: 'POST', credentials: 'include' })
       if (!res.ok) return null
@@ -78,7 +84,8 @@ export function refreshAccessToken(): Promise<string | null> {
     } finally {
       refreshing = null
     }
-  })()
+  }
+  refreshing ??= typeof navigator !== 'undefined' && navigator.locks ? navigator.locks.request('playerhaat-admin-refresh', exchange) : exchange()
   return refreshing
 }
 

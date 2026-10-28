@@ -31,3 +31,15 @@ describe('permissions', () => {
     expect(canAny('SUPPORT', ['users.ban', 'audit.view'])).toBe(false)
   })
 })
+
+describe('permissions for verification and money', () => {
+  it('lets moderators review verifications but never touch payments, packs or credits', () => {
+    expect(can('MODERATOR', 'verifications.review')).toBe(true)
+    for (const p of ['payments.review', 'packs.manage', 'credits.grant'] as const) expect(can('MODERATOR', p)).toBe(false)
+  })
+
+  it('keeps support read-only on recruiters', () => {
+    expect(can('SUPPORT', 'recruiters.view')).toBe(true)
+    expect(can('SUPPORT', 'verifications.review')).toBe(false)
+  })
+})

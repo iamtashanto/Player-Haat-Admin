@@ -25,6 +25,11 @@ export const PERMISSIONS = [
   'config.flags',
   'notifications.send',
   'audit.view',
+  'recruiters.view',
+  'verifications.review',
+  'payments.review',
+  'packs.manage',
+  'credits.grant',
 ] as const
 
 export type Permission = (typeof PERMISSIONS)[number]
@@ -35,9 +40,9 @@ export type ApiRole = Role | 'ADMIN' | 'PLAYER' | 'RECRUITER'
 
 const MODERATOR: Permission[] = [
   'dashboard.view', 'users.view', 'users.suspend', 'profiles.view', 'profiles.moderate',
-  'requests.view', 'requests.moderate', 'reports.view', 'reports.resolve',
+  'requests.view', 'requests.moderate', 'reports.view', 'reports.resolve', 'recruiters.view', 'verifications.review',
 ]
-const SUPPORT: Permission[] = ['dashboard.view', 'users.view', 'users.reset_sessions', 'profiles.view', 'requests.view', 'reports.view']
+const SUPPORT: Permission[] = ['dashboard.view', 'users.view', 'users.reset_sessions', 'profiles.view', 'requests.view', 'reports.view', 'recruiters.view']
 
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   SUPER_ADMIN: PERMISSIONS,
