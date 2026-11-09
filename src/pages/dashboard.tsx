@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { BadgeCheck, CreditCard, Flag, Loader2, UserPlus, Users, type LucideIcon } from 'lucide-react'
+import { BadgeCheck, CalendarCheck, CreditCard, Flag, Loader2, MessagesSquare, UserCheck, UserPlus, Users, type LucideIcon } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/auth/auth-context'
 import { Card } from '@/components/ui/form'
@@ -10,6 +10,7 @@ import { PageHeader } from '@/pages/shared'
 
 interface Stats {
   summary: {
+    play: { freeToday: number; openJoinGamesOpen: number; attendedLast30Days: number; noShowsLast30Days: number; gameChatMessagesLast7Days: number }
     users: { total: number; byRole: Record<string, number>; signupsToday: number; signupsLast7Days: number; signupsLast30Days: number }
     players: { totalProfiles: number; verifiedProfiles: number; hiddenByAdmin: number }
     recruiters: { totalProfiles: number; verifiedProfiles: number }
@@ -80,6 +81,13 @@ export function DashboardHome() {
         <Tile icon={UserPlus} label="Sign-ups, last 7 days" value={s.users.signupsLast7Days} />
         <Tile icon={BadgeCheck} label={`Verified players (of ${fmtNumber(s.players.totalProfiles)})`} value={s.players.verifiedProfiles} />
         <Tile icon={BadgeCheck} label={`Verified recruiters (of ${fmtNumber(s.recruiters.totalProfiles)})`} value={s.recruiters.verifiedProfiles} />
+      </section>
+
+      <section aria-label="Casual play" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Tile icon={UserCheck} label="Players free to play right now" value={s.play.freeToday} />
+        <Tile icon={CalendarCheck} label="Open-join games waiting for players" value={s.play.openJoinGamesOpen} />
+        <Tile icon={UserCheck} label={`Attendance marked, last 30 days (${fmtNumber(s.play.noShowsLast30Days)} no-shows)`} value={s.play.attendedLast30Days + s.play.noShowsLast30Days} />
+        <Tile icon={MessagesSquare} label="Game-chat messages, last 7 days" value={s.play.gameChatMessagesLast7Days} />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
