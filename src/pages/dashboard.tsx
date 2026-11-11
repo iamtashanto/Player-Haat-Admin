@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { BadgeCheck, CalendarCheck, Image as ImageIcon, CreditCard, Flag, Loader2, MessagesSquare, UserCheck, UserPlus, Users, type LucideIcon } from 'lucide-react'
@@ -61,7 +62,8 @@ function Tile({ icon: Icon, label, value, to, attention }: { icon: LucideIcon; l
 export function DashboardHome() {
   const { user, can } = useAuth()
   const media = useQuery({ queryKey: ['media-usage'], queryFn: async () => (await api.get<{ provider: string; usedBytes?: number; quotaBytes?: number; files?: number }>('/admin/media/usage')).data, refetchInterval: 300_000, retry: false })
-  const { data, isPending, error } = useQuery({ queryKey: ['stats'], queryFn: async () => (await api.get<Stats>('/admin/stats')).data, refetchInterval: 60_000 })
+  const [days, setDays] = useState<7 | 30 | 90>(30)
+  const { data, isPending, error } = useQuery({ queryKey: ['stats', days], queryFn: async () => (await api.get<Stats>('/admin/stats', { days })).data, refetchInterval: 60_000, placeholderData: (prev) => prev })
 
   if (isPending) return <div className="grid min-h-[40vh] place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
   if (error || !data) return <p className="text-sm text-destructive">Couldn’t load the overview. {(error as Error | null)?.message}</p>
@@ -72,6 +74,12 @@ export function DashboardHome() {
   return (
     <div className="animate-fade-up space-y-6">
       <PageHeader title={`Welcome back, ${user?.name.split(' ')[0] ?? 'admin'}`} description={waiting > 0 ? `${waiting} item${waiting === 1 ? '' : 's'} waiting for a person.` : 'Nothing is waiting for review.'} />
+
+      <div role="group" aria-label="Date range" className="flex gap-2">
+        {([7, 30, 90] as const).map((d) => (
+          <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)} className={`rounded-full border px-3 py-1 text-xs font-medium ${days === d ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>Last {d} days</button>
+        ))}
+      </div>
 
       <section aria-label="Waiting for review" className="grid gap-3 sm:grid-cols-3">
         {can('verifications.review') && <Tile icon={BadgeCheck} label="Verifications to review" value={s.moderation.pendingVerifications} to="/verifications" attention={s.moderation.pendingVerifications > 0} />}
@@ -96,13 +104,13 @@ export function DashboardHome() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
-          <h2 className="text-sm font-semibold">Sign-ups, last 30 days</h2>
-          <Trend values={c.signupsTrend.map((d) => d.total)} label="Sign-ups per day" />
+          <h2 className="text-sm font-semibold">Sign-ups, last {days} days</h2>
+          {c.signupsTrend.every((d) => d.total === 0) ? <p className="py-6 text-sm text-muted-foreground">No data yet for this period.</p> : <Trend values={c.signupsTrend.map((d) => d.total)} label="Sign-ups per day" />}
           <p className="text-xs text-muted-foreground">{fmtNumber(s.users.signupsLast30Days)} new accounts · {fmtNumber(s.users.signupsToday)} today</p>
         </Card>
         <Card className="p-5">
           <h2 className="text-sm font-semibold">Requests and applications</h2>
-          <Trend values={c.activityTrend.map((d) => d.requests + d.applications)} label="Requests and applications per day" />
+          {c.activityTrend.every((d) => d.requests + d.applications === 0) ? <p className="py-6 text-sm text-muted-foreground">No data yet for this period.</p> : <Trend values={c.activityTrend.map((d) => d.requests + d.applications)} label="Requests and applications per day" />}
           <p className="text-xs text-muted-foreground">{fmtNumber(s.requests.total)} requests · {fmtNumber(s.applications.total)} applications · {fmtNumber(s.requests.byStatus.OPEN ?? 0)} open now</p>
         </Card>
       </section>
