@@ -7,7 +7,7 @@ import { totp } from './totp';
 export const SERVER_DIR = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../server');
 export const DB = process.env.E2E_DATABASE_URL ?? (() => { throw new Error('Set E2E_DATABASE_URL to the API database'); })();
 export const stamp = Date.now().toString(36);
-export const ADMIN_EMAIL = `admin-${stamp}@e2e.test`;
+export const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? `admin-${stamp}@e2e.test`;
 export const ADMIN_PASSWORD = 'E2e-admin-passw0rd!';
 
 export const sql = (q: string) => execFileSync('psql', [DB, '-Atc', q], { encoding: 'utf8' }).trim();
@@ -18,20 +18,36 @@ export function createAdmin() {
   if (r.status !== 0) throw new Error(`admin:create failed: ${r.stderr || r.stdout}`);
 }
 
-/** Email + password, then first-time authenticator enrolment (the secret is on screen), then the backup-code step. */
+let enrolledSecret: string | null = null;
+
+/**
+ * Email + password, then either first-time authenticator enrolment (the secret is on screen) or, for later
+ * sign-ins in the same run, the 6-digit code from that same secret. Both paths are the real screens.
+ */
 export async function signInAsNewAdmin(page: Page) {
   await page.goto('/login');
   await page.getByLabel('Email').fill(ADMIN_EMAIL);
   await page.getByLabel('Password').fill(ADMIN_PASSWORD);
   await page.locator('#login-submit').click();
-  const secret = (await page.locator('code').first().textContent({ timeout: 15_000 }))!.trim();
-  await page.locator('#code').fill(totp(secret));
-  await page.locator('#totp-enable').click();
-  await page.locator('#backup-saved').check();
-  await page.locator('#backup-continue').click();
+  if (enrolledSecret === null) {
+    enrolledSecret = (await page.locator('code').first().textContent({ timeout: 15_000 }))!.trim();
+    await page.locator('#code').fill(totp(enrolledSecret));
+    await page.locator('#totp-enable').click();
+    await page.locator('#backup-saved').check();
+    await page.locator('#backup-continue').click();
+  } else {
+    await page.locator('#code').waitFor({ timeout: 15_000 });
+    // a code is single-use per 30-second step: wait for the next step if the enrolment code is still the current one
+    let code = totp(enrolledSecret);
+    if (code === lastCode) { await page.waitForTimeout(31_000); code = totp(enrolledSecret); }
+    await page.locator('#code').fill(code);
+    await page.locator('#totp-submit').click();
+  }
+  lastCode = totp(enrolledSecret);
   await expect(page).toHaveURL(/\/$/);
-  return secret;
 }
+
+let lastCode = '';
 
 const id = () => `'e2e${Math.random().toString(36).slice(2, 14)}'`;
 
