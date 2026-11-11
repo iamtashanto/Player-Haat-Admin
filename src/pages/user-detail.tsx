@@ -21,7 +21,7 @@ interface Detail extends UserRow {
   avatarUrl: string | null
   authAccounts: Array<{ provider: string }>
   captainRating: { average: number; count: number }
-  recruiter: { id: string; type: string; organization: string | null; verifiedBadge: boolean; district?: { nameEn: string } | null } | null
+  recruiter: { id: string; type: string; organization: string | null; verifiedBadge: boolean; logoUrl?: string | null; district?: { nameEn: string } | null } | null
   playerProfile: {
     id: string; location: string; isVisible: boolean; hiddenByAdmin: boolean; verifiedBadge: boolean; avgRating: number; ratingCount: number; noShowCount: number
     coverUrl: string | null
@@ -36,7 +36,7 @@ interface Detail extends UserRow {
 }
 
 type Dialog = 'suspend' | 'unsuspend' | 'ban' | 'delete' | 'role' | 'credits' | 'reset' | null
-type MediaTarget = { kind: 'avatar' | 'cover' } | { kind: 'media'; id: string; label: string } | null
+type MediaTarget = { kind: 'avatar' | 'cover' | 'logo' } | { kind: 'media'; id: string; label: string } | null
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <Card className="p-5"><h2 className="mb-3 text-sm font-semibold">{title}</h2>{children}</Card>
@@ -97,6 +97,13 @@ export default function UserDetailPage() {
 
       {u.recruiter && (
         <Section title="Recruiter">
+          {u.recruiter.logoUrl && (
+            <div className="mb-3 flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={mediaUrl(u.recruiter.logoUrl, AVATAR)} alt="Organisation logo" className="h-16 w-16 rounded-lg border object-cover" />
+              {can('profiles.moderate') && <Button variant="outline" size="sm" onClick={() => setMediaTarget({ kind: 'logo' })}>Remove logo</Button>}
+            </div>
+          )}
           <p className="text-sm"><span className="font-medium">{u.recruiter.organization ?? 'Independent'}</span> · {humanize(u.recruiter.type)} {u.recruiter.verifiedBadge ? <Badge tone="success" className="ml-1">Verified</Badge> : <Badge className="ml-1">Not verified</Badge>}</p>
         </Section>
       )}
