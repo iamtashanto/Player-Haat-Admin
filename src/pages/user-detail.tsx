@@ -12,16 +12,20 @@ import { Card } from '@/components/ui/form'
 import { Select } from '@/components/ui/select'
 import { useAction } from '@/lib/queries'
 import { ago, fmtDateTime, humanize } from '@/lib/format'
+import { AVATAR, COVER, THUMB, mediaUrl } from '@/lib/media-url'
 import { PageHeader } from '@/pages/shared'
 import type { UserRow } from '@/pages/users'
 
 interface Detail extends UserRow {
   birthYear: number | null
+  avatarUrl: string | null
   authAccounts: Array<{ provider: string }>
   captainRating: { average: number; count: number }
-  recruiter: { id: string; type: string; organization: string | null; verifiedBadge: boolean; district?: { nameEn: string } | null } | null
+  recruiter: { id: string; type: string; organization: string | null; verifiedBadge: boolean; logoUrl?: string | null; district?: { nameEn: string } | null } | null
   playerProfile: {
     id: string; location: string; isVisible: boolean; hiddenByAdmin: boolean; verifiedBadge: boolean; avgRating: number; ratingCount: number; noShowCount: number
+    coverUrl: string | null
+    media: Array<{ id: string; type: 'PHOTO' | 'VIDEO_LINK'; url: string; thumbnailUrl: string | null; caption: string | null; videoId: string | null; sportId: number | null }>
     sports: Array<{ id: string; sportName: string; positions: string[]; headline: string | null; experienceYears: number | null; avgRating: number; ratingCount: number; hiddenByAdmin: boolean; stats: Record<string, number> | null }>
   } | null
   recentRequests: Array<{ id: string; sport: string; venue: string; matchAt: string; status: string; applicationsCount: number }>
@@ -32,6 +36,7 @@ interface Detail extends UserRow {
 }
 
 type Dialog = 'suspend' | 'unsuspend' | 'ban' | 'delete' | 'role' | 'credits' | 'reset' | null
+type MediaTarget = { kind: 'avatar' | 'cover' | 'logo' } | { kind: 'media'; id: string; label: string } | null
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <Card className="p-5"><h2 className="mb-3 text-sm font-semibold">{title}</h2>{children}</Card>
@@ -45,6 +50,7 @@ export default function UserDetailPage() {
   const [days, setDays] = useState('')
   const [role, setRole] = useState<'PLAYER' | 'RECRUITER'>('RECRUITER')
   const [delta, setDelta] = useState('10')
+  const [mediaTarget, setMediaTarget] = useState<MediaTarget>(null)
 
   const { data: u, isPending, error } = useQuery({ queryKey: ['user', id], queryFn: async () => (await api.get<Detail>(`/admin/users/${id}`)).data })
   const refresh = [['user', id], ['paged']]
@@ -55,6 +61,7 @@ export default function UserDetailPage() {
   const del = useAction((reason: string) => api.delete(base, { reason }), { success: 'Account deleted', invalidate: refresh })
   const changeRole = useAction((v: { role: string; reason: string }) => api.put(`${base}/role`, v), { success: 'Role changed', invalidate: refresh })
   const credits = useAction((v: { delta: number; reason: string }) => api.post(`${base}/credits`, v), { success: (r) => `Balance is now ${(r as { data: { balance: number } }).data.balance}`, invalidate: refresh })
+  const removeMedia = useAction((v: { target: NonNullable<MediaTarget>; reason: string }) => api.delete(v.target.kind === 'media' ? `${base}/media/${v.target.id}` : `${base}/${v.target.kind}`, { reason: v.reason }), { success: 'Removed. The file is deleted and the action is in the audit log.', invalidate: refresh })
   const reset = useAction(() => api.post(`${base}/reset-sessions`), { success: 'Signed out of every device', invalidate: refresh })
 
   if (isPending) return <div className="grid min-h-[40vh] place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
@@ -90,7 +97,52 @@ export default function UserDetailPage() {
 
       {u.recruiter && (
         <Section title="Recruiter">
+          {u.recruiter.logoUrl && (
+            <div className="mb-3 flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={mediaUrl(u.recruiter.logoUrl, AVATAR)} alt="Organisation logo" className="h-16 w-16 rounded-lg border object-cover" />
+              {can('profiles.moderate') && <Button variant="outline" size="sm" onClick={() => setMediaTarget({ kind: 'logo' })}>Remove logo</Button>}
+            </div>
+          )}
           <p className="text-sm"><span className="font-medium">{u.recruiter.organization ?? 'Independent'}</span> · {humanize(u.recruiter.type)} {u.recruiter.verifiedBadge ? <Badge tone="success" className="ml-1">Verified</Badge> : <Badge className="ml-1">Not verified</Badge>}</p>
+        </Section>
+      )}
+
+      {(u.avatarUrl || u.playerProfile) && (
+        <Section title="Pictures">
+          <div className="space-y-4">
+            {u.playerProfile?.coverUrl && (
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={mediaUrl(u.playerProfile.coverUrl, COVER)} alt="Cover" className="aspect-[3/1] w-full rounded-lg object-cover" />
+                {can('profiles.moderate') && <Button variant="destructive" size="sm" className="absolute right-2 top-2" onClick={() => setMediaTarget({ kind: 'cover' })}>Remove cover</Button>}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-3">
+              {u.avatarUrl ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={mediaUrl(u.avatarUrl, AVATAR)} alt="Avatar" className="h-16 w-16 rounded-full object-cover" />
+                  {can('profiles.moderate') && <Button variant="outline" size="sm" onClick={() => setMediaTarget({ kind: 'avatar' })}>Remove avatar</Button>}
+                </>
+              ) : <Empty>No avatar.</Empty>}
+            </div>
+            {(u.playerProfile?.media.length ?? 0) > 0 ? (
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6" aria-label="Gallery">
+                {u.playerProfile!.media.map((m) => (
+                  <li key={m.id} className="space-y-1">
+                    <a href={m.url} target="_blank" rel="noreferrer" className="relative block aspect-square overflow-hidden rounded-lg bg-muted">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={m.type === 'PHOTO' ? mediaUrl(m.thumbnailUrl ?? m.url, THUMB) : (m.thumbnailUrl ?? undefined)} alt={m.caption ?? ''} className="h-full w-full object-cover" />
+                      {m.type === 'VIDEO_LINK' && <span className="absolute inset-0 grid place-items-center bg-black/30 text-xs font-semibold text-white">YouTube</span>}
+                    </a>
+                    {m.caption && <p className="truncate text-xs text-muted-foreground">{m.caption}</p>}
+                    {can('profiles.moderate') && <Button variant="outline" size="sm" className="w-full" onClick={() => setMediaTarget({ kind: 'media', id: m.id, label: m.type === 'PHOTO' ? 'photo' : 'video' })}>Remove</Button>}
+                  </li>
+                ))}
+              </ul>
+            ) : <Empty>No gallery photos or videos.</Empty>}
+          </div>
         </Section>
       )}
 
@@ -125,6 +177,11 @@ export default function UserDetailPage() {
         </Section>
       </div>
 
+      <ReasonDialog
+        open={mediaTarget !== null} onClose={() => setMediaTarget(null)} title={mediaTarget?.kind === 'media' ? `Remove this ${mediaTarget.label}?` : `Remove the ${mediaTarget?.kind ?? ''}?`}
+        description="The file is deleted from storage and the owner's profile loses it. The reason is saved in the audit log." confirmLabel="Remove" destructive
+        onConfirm={(reason) => removeMedia.mutateAsync({ target: mediaTarget!, reason })}
+      />
       <ReasonDialog open={dialog === 'suspend'} onClose={close} title={`Suspend ${u.name}?`} description="They're signed out and can't sign back in. Their upcoming requests are cancelled and the people affected are told." confirmLabel="Suspend" destructive onConfirm={(reason) => suspend.mutateAsync(reason)} />
       <ReasonDialog open={dialog === 'unsuspend'} onClose={close} title={`Lift ${u.name}'s suspension?`} required={false} confirmLabel="Lift suspension" onConfirm={(reason) => unsuspend.mutateAsync(reason)} />
       <ReasonDialog

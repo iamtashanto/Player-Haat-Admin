@@ -6,11 +6,79 @@ import { Card, Input, Label } from '@/components/ui/form'
 import { Select } from '@/components/ui/select'
 import { api } from '@/lib/api'
 import { useAction } from '@/lib/queries'
-import { fmtNumber } from '@/lib/format'
+import { ago, fmtNumber, humanize } from '@/lib/format'
+import { usePaged } from '@/lib/queries'
+import { Badge, StatusBadge } from '@/components/ui/badge'
 import { PageHeader } from '@/pages/shared'
 import { useSports } from '@/lib/sports'
 
 interface Place { id: number; nameEn: string }
+interface Announcement {
+  id: string; title: string; body: string; recipients: number; createdAt: string
+  delivery: { queued: number; sent: number; devicesReached: number; failed: number; skipped: Record<string, number>; opened: number }
+}
+interface PushRow { id: string; userName: string; type: string; status: string; attempts: number; skipReason: string | null; lastError: string | null; deviceCount: number; deliveredCount: number; createdAt: string; nextAttemptAt: string | null }
+
+const SKIP_TEXT: Record<string, string> = { NO_DEVICE: 'no device', CATEGORY_OFF: 'switched off', EXPIRED: 'too late', PUSH_NOT_CONFIGURED: 'push not configured' }
+
+/** What happened to past announcements, and the most recent pushes of any kind. */
+function Delivery() {
+  const past = usePaged<Announcement>('/admin/announcements', {}, 10)
+  const [status, setStatus] = useState('')
+  const log = usePaged<PushRow>('/admin/push-log', status ? { status } : {}, 15)
+  const stats = useQuery({ queryKey: ['push-stats'], refetchInterval: 15_000, queryFn: async () => (await api.get<{ last24h: Record<string, number>; backlog: number }>('/admin/push-stats')).data })
+  return (
+    <div className="mt-8 space-y-6">
+      <Card className="p-5" data-testid="push-stats">
+        <h2 className="text-sm font-semibold">Push queue, last 24 hours</h2>
+        <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          {['SENT', 'FAILED', 'SKIPPED'].map((k) => <span key={k}><span className="font-semibold">{fmtNumber(stats.data?.last24h[k] ?? 0)}</span> <span className="text-muted-foreground">{humanize(k)}</span></span>)}
+          <span><span className="font-semibold">{fmtNumber(stats.data?.backlog ?? 0)}</span> <span className="text-muted-foreground">waiting (retrying or held for quiet hours)</span></span>
+        </div>
+      </Card>
+      <Card className="p-5">
+        <h2 className="mb-3 text-sm font-semibold">Past announcements</h2>
+        {past.items.length === 0 ? <p className="text-sm text-muted-foreground">None sent yet.</p> : (
+          <ul className="divide-y text-sm">
+            {past.items.map((a) => (
+              <li key={a.id} className="py-3">
+                <p className="font-medium">{a.title} <span className="font-normal text-muted-foreground">· {ago(a.createdAt)} · {fmtNumber(a.recipients)} people</span></p>
+                <p className="text-xs text-muted-foreground">
+                  {fmtNumber(a.delivery.sent)} pushed to {fmtNumber(a.delivery.devicesReached)} devices · {fmtNumber(a.delivery.opened)} opened
+                  {a.delivery.queued > 0 && ` · ${fmtNumber(a.delivery.queued)} waiting`}
+                  {a.delivery.failed > 0 && ` · ${fmtNumber(a.delivery.failed)} failed`}
+                  {Object.entries(a.delivery.skipped).map(([k, n]) => ` · ${fmtNumber(n)} ${SKIP_TEXT[k] ?? k.toLowerCase()}`).join('')}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+      <Card className="p-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold">Push log</h2>
+          <Select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)} className="w-40">
+            <option value="">All</option><option value="SENT">Sent</option><option value="PENDING">Waiting</option><option value="FAILED">Failed</option><option value="SKIPPED">Skipped</option>
+          </Select>
+        </div>
+        {log.items.length === 0 ? <p className="text-sm text-muted-foreground">Nothing yet.</p> : (
+          <ul className="divide-y text-sm">
+            {log.items.map((j) => (
+              <li key={j.id} className="flex items-center justify-between gap-3 py-2">
+                <span className="min-w-0"><span className="font-medium">{humanize(j.type)}</span> <span className="text-muted-foreground">to {j.userName} · {ago(j.createdAt)}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {j.status === 'SENT' ? `${j.deliveredCount}/${j.deviceCount} devices` : j.status === 'SKIPPED' ? (SKIP_TEXT[j.skipReason ?? ''] ?? j.skipReason) : j.status === 'PENDING' ? `attempt ${j.attempts}${j.lastError ? `: ${j.lastError}` : ''}${j.nextAttemptAt ? ` · next ${ago(j.nextAttemptAt)}` : ''}` : j.lastError}
+                  </span></span>
+                {j.status === 'SENT' ? <Badge tone="success">Sent</Badge> : <StatusBadge status={j.status} />}
+              </li>
+            ))}
+          </ul>
+        )}
+        {log.hasMore && <button type="button" className="mt-3 text-sm text-primary" disabled={log.loadingMore} onClick={log.loadMore}>Load more</button>}
+      </Card>
+    </div>
+  )
+}
 
 /** A push + inbox message to a slice of users. The size of the audience is shown before anything is sent. */
 export default function AnnouncementsPage() {
@@ -49,6 +117,7 @@ export default function AnnouncementsPage() {
           <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setConfirm(false)}>Cancel</Button><Button disabled={send.isPending} onClick={async () => { await send.mutateAsync(undefined).then(() => { setConfirm(false); setF((p) => ({ ...p, title: '', body: '' })) }).catch(() => undefined) }}>Send now</Button></div>
         </div>
       </Dialog>
+      <Delivery />
     </div>
   )
 }
