@@ -122,3 +122,13 @@ export const api = {
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
   delete: <T>(path: string, body?: unknown) => request<T>(path, { method: 'DELETE', body }),
 }
+
+/** A protected binary (a verification document) with the admin session; every call is audit-logged by the API. */
+export async function fetchBlob(path: string): Promise<Blob> {
+  let res = await send(path, {})
+  if (res.status === 401) {
+    if (await refreshAccessToken()) res = await send(path, {})
+  }
+  if (!res.ok) throw new ApiError(res.status, 'REQUEST_FAILED', 'Could not load the document')
+  return res.blob()
+}

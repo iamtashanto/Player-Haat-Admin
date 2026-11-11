@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink, Loader2 } from 'lucide-react'
 import { FilterSelect, Toolbar } from '@/components/data/filters'
@@ -7,13 +7,13 @@ import { Button } from '@/components/ui/button'
 import { ReasonDialog } from '@/components/ui/dialog'
 import { Card } from '@/components/ui/form'
 import { useAuth } from '@/auth/auth-context'
-import { api } from '@/lib/api'
+import { api, fetchBlob } from '@/lib/api'
 import { useAction, usePaged } from '@/lib/queries'
 import { ago, fmtDateTime, humanize } from '@/lib/format'
 import { PageHeader } from '@/pages/shared'
 
 interface Verification {
-  id: string; kind: 'RECRUITER' | 'PLAYER_STATS'; status: string; note: string | null; evidenceLinks: string[]; evidenceImages: Array<{ url: string }>; reviewNote: string | null
+  id: string; kind: 'RECRUITER' | 'PLAYER_STATS'; status: string; note: string | null; evidenceLinks: string[]; files: Array<{ id: string; mime: string; width: number | null; height: number | null }>; reviewNote: string | null
   createdAt: string; reviewedAt: string | null
   submitter: { id: string; name: string; email: string | null; phone: string | null }
   recruiter: { id: string; type: string; organization: string | null; bio: string | null; verifiedBadge: boolean } | null
@@ -24,6 +24,29 @@ interface Verification {
 const SafeLink = ({ href }: { href: string }) => {
   const ok = /^https:\/\//i.test(href)
   return ok ? <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-1 break-all text-primary hover:underline">{href}<ExternalLink className="h-3 w-3 shrink-0" /></a> : <span className="break-all text-muted-foreground">{href}</span>
+}
+
+/** A private document: nothing is fetched until an admin asks (each opening is written to the audit log). */
+function Document({ requestId, file }: { requestId: string; file: { id: string; width: number | null; height: number | null } }) {
+  const [src, setSrc] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(false)
+  useEffect(() => () => { if (src) URL.revokeObjectURL(src) }, [src])
+  const open = async () => {
+    setBusy(true)
+    setErr(false)
+    try {
+      setSrc(URL.createObjectURL(await fetchBlob(`/admin/verification/${requestId}/files/${file.id}`)))
+    } catch {
+      setErr(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+  if (!src) {
+    return <button type="button" onClick={() => void open()} disabled={busy} className="grid h-20 w-20 place-items-center rounded-lg border bg-muted text-xs text-muted-foreground hover:bg-accent">{busy ? 'Opening…' : err ? 'Failed, retry' : 'Open document'}</button>
+  }
+  return <a href={src} target="_blank" rel="noopener noreferrer"><img src={src} alt="Submitted document" width={file.width ?? undefined} height={file.height ?? undefined} className="h-20 w-20 rounded-lg border object-cover hover:opacity-80" /></a>
 }
 
 export default function VerificationsPage() {
@@ -80,11 +103,9 @@ export default function VerificationsPage() {
               <div>
                 <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Evidence</p>
                 <ul className="space-y-1">{v.evidenceLinks.map((l) => <li key={l}><SafeLink href={l} /></li>)}</ul>
-                {v.evidenceImages.length > 0 && (
+                {v.files.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {v.evidenceImages.map((img) => (
-                      <a key={img.url} href={img.url} target="_blank" rel="noopener noreferrer"><img src={img.url} alt="Submitted document" loading="lazy" className="h-20 w-20 rounded-lg border object-cover hover:opacity-80" /></a>
-                    ))}
+                    {v.files.map((f) => <Document key={f.id} requestId={v.id} file={f} />)}
                   </div>
                 )}
               </div>
