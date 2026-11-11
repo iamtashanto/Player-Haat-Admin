@@ -1,9 +1,10 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect, type Page } from '@playwright/test';
 import { totp } from './totp';
 
-export const SERVER_DIR = resolve(__dirname, '../../server');
+export const SERVER_DIR = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../server');
 export const DB = process.env.E2E_DATABASE_URL ?? (() => { throw new Error('Set E2E_DATABASE_URL to the API database'); })();
 export const stamp = Date.now().toString(36);
 export const ADMIN_EMAIL = `admin-${stamp}@e2e.test`;
