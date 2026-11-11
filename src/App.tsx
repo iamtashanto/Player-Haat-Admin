@@ -13,6 +13,7 @@ import ProfilesPage from '@/pages/profiles'
 import RecruitersPage from '@/pages/recruiters'
 import VerificationsPage from '@/pages/verifications'
 import PaymentsPage from '@/pages/payments'
+import RatingsPage from '@/pages/ratings'
 import RequestsPage from '@/pages/requests'
 import ReportsPage from '@/pages/reports'
 import SportsPage from '@/pages/sports'
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="/verifications" element={<RequirePermission permission="verifications.review"><VerificationsPage /></RequirePermission>} />
         <Route path="/payments" element={<RequirePermission permission="payments.review"><PaymentsPage /></RequirePermission>} />
         <Route path="/requests" element={<RequirePermission permission="requests.view"><RequestsPage /></RequirePermission>} />
+        <Route path="/ratings" element={<RequirePermission permission="reports.view"><RatingsPage /></RequirePermission>} />
         <Route path="/reports" element={<RequirePermission permission="reports.view"><ReportsPage /></RequirePermission>} />
         <Route path="/config/sports" element={<RequirePermission permission="config.sports"><SportsPage /></RequirePermission>} />
         <Route path="/config/locations" element={<RequirePermission permission="config.locations"><LocationsPage /></RequirePermission>} />

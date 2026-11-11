@@ -43,6 +43,30 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 )
 const Empty = ({ children }: { children: React.ReactNode }) => <p className="text-sm text-muted-foreground">{children}</p>
 
+interface RatingRow { id: string; direction: string; raterId: string; rateeId: string; noShow: boolean; overall: number | null; comment: string | null; reply: string | null; revealedAt: string | null; hiddenByAdminAt: string | null; dispute: { id: string; status: string } | null; createdAt: string }
+
+/** Everything this person gave and received, including hidden and not-yet-revealed ratings. */
+function RatingHistory({ userId }: { userId: string }) {
+  const q = useQuery({ queryKey: ['user-ratings', userId], queryFn: async () => (await api.get<RatingRow[]>(`/admin/users/${userId}/ratings`)).data })
+  return (
+    <Card className="p-5">
+      <h2 className="mb-3 text-sm font-semibold">Rating history</h2>
+      {q.isPending ? <p className="text-sm text-muted-foreground">Loading…</p> : q.error ? <p className="text-sm text-destructive">Couldn’t load ratings.</p> : (q.data ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No ratings given or received yet.</p> : (
+        <ul className="divide-y text-sm">
+          {q.data!.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span>{r.rateeId === userId ? 'Received' : 'Gave'} · {r.noShow ? 'no-show strike' : `${r.overall?.toFixed(1)}★`}{r.comment ? ` · “${r.comment}”` : ''}{r.reply ? ` · reply: “${r.reply}”` : ''}</span>
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                {!r.revealedAt && <Badge>Hidden until revealed</Badge>}{r.hiddenByAdminAt && <Badge>Removed by admin</Badge>}{r.dispute && <StatusBadge status={r.dispute.status} />}{ago(r.createdAt)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
 export default function UserDetailPage() {
   const { id = '' } = useParams()
   const { can } = useAuth()
@@ -189,6 +213,8 @@ export default function UserDetailPage() {
         extra={<div><Label htmlFor="days">Duration in days (optional)</Label><Input id="days" type="number" min={1} max={365} value={days} onChange={(e) => setDays(e.target.value)} className="mt-1" /></div>}
         onConfirm={(reason) => ban.mutateAsync({ reason, durationDays: days ? Number(days) : undefined })}
       />
+      <RatingHistory userId={u.id} />
+
       <ReasonDialog open={dialog === 'delete'} onClose={close} title={`Delete ${u.name}?`} description="Anonymises the account and removes it from the app. This can't be undone." confirmLabel="Delete account" destructive onConfirm={(reason) => del.mutateAsync(reason)} />
       <ReasonDialog open={dialog === 'reset'} onClose={close} title={`Sign ${u.name} out everywhere?`} description="Every device is signed out; they can sign back in." required={false} confirmLabel="Sign out" onConfirm={() => reset.mutateAsync(undefined)} />
       <ReasonDialog
