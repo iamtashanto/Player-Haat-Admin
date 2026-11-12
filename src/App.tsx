@@ -14,6 +14,7 @@ import RecruitersPage from '@/pages/recruiters'
 import VerificationsPage from '@/pages/verifications'
 import PaymentsPage from '@/pages/payments'
 import RatingsPage from '@/pages/ratings'
+import HealthPage from '@/pages/health'
 import RequestsPage from '@/pages/requests'
 import ReportsPage from '@/pages/reports'
 import SportsPage from '@/pages/sports'
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/config/locations" element={<RequirePermission permission="config.locations"><LocationsPage /></RequirePermission>} />
         <Route path="/config/flags" element={<RequirePermission permission="config.flags"><FlagsPage /></RequirePermission>} />
         <Route path="/notifications" element={<RequirePermission permission="notifications.send"><AnnouncementsPage /></RequirePermission>} />
+        <Route path="/health" element={<RequirePermission permission="config.flags"><HealthPage /></RequirePermission>} />
         <Route path="/audit" element={<RequirePermission permission="audit.view"><AuditPage /></RequirePermission>} />
         <Route path="/account" element={<AccountPage />} />
         <Route path="*" element={<NotFound />} />

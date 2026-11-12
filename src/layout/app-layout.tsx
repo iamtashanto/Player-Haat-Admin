@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import {
   Activity, BadgeCheck, Bell, Briefcase, ClipboardList, CreditCard, Flag, LayoutDashboard, LogOut, MapPin, Menu, Monitor, Moon, ScrollText,
-  Settings, Shield, Star, Sun, Trophy, UserCog, Users, type LucideIcon,
+  HeartPulse, Settings, Shield, Star, Sun, Trophy, UserCog, Users, type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '@/auth/auth-context'
 import { useTheme } from '@/components/theme-provider'
@@ -45,6 +45,7 @@ export const NAV: NavGroup[] = [
       { to: '/config/locations', label: 'Locations', icon: MapPin, permission: 'config.locations' },
       { to: '/config/flags', label: 'Flags & pricing', icon: Settings, permission: 'config.flags' },
       { to: '/notifications', label: 'Announcements', icon: Bell, permission: 'notifications.send' },
+      { to: '/health', label: 'App health', icon: HeartPulse, permission: 'config.flags' },
       { to: '/audit', label: 'Audit log', icon: ScrollText, permission: 'audit.view' },
     ],
   },

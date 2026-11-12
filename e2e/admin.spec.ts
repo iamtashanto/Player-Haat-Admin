@@ -6,7 +6,7 @@ test.describe.configure({ mode: 'serial' });
 const PAGES: Array<[string, RegExp]> = [
   ['/', /welcome back/i], ['/users', /users|accounts/i], ['/profiles', /profiles|players/i], ['/recruiters', /recruiters/i],
   ['/verifications', /verifications/i], ['/payments', /payments/i], ['/requests', /requests/i], ['/reports', /reports/i],
-  ['/ratings', /ratings/i], ['/config/sports', /sports/i], ['/config/locations', /locations/i], ['/config/flags', /flags|config/i],
+  ['/ratings', /ratings/i], ['/health', /app health/i], ['/config/sports', /sports/i], ['/config/locations', /locations/i], ['/config/flags', /flags|config/i],
   ['/notifications', /announcement|notification/i], ['/audit', /audit/i], ['/account', /account|two-factor/i],
 ];
 
